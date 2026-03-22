@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-eval-loop"
+version = "0.1.0"
+description = "Multi-agent improvement loop with observability"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.40.0",
+    "duckdb>=1.0.0",
+    "rich>=13.0.0",
+    "typer>=0.12.0",
+    "tenacity>=9.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.4.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["agents", "loop", "eval", "dashboard"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

@@ -1,0 +1,10 @@
+.env
+*.db
+*.duckdb
+__pycache__/
+*.pyc
+.venv/
+dist/
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
