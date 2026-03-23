@@ -110,5 +110,40 @@ def report_cmd(
     typer.echo(f"Report written to: {path}")
 
 
+@app.command("skills")
+def skills_cmd(
+    action: str = typer.Argument("list", help="list | show <id> | export <path>"),
+    target: str = typer.Argument("", help="Skill ID or file path (for show/export)."),
+    registry_path: str = typer.Option("", "--registry", help="Path to a custom skills JSON file."),
+) -> None:
+    """Manage the skill registry."""
+    from eval.skills import SkillRegistry
+
+    reg = SkillRegistry.load(registry_path) if registry_path else SkillRegistry()
+
+    if action == "list":
+        typer.echo("Available skills:")
+        for sid in reg.list_ids():
+            skill = reg.get(sid)
+            typer.echo(f"  {sid:40s}  {skill.description[:60]}")
+
+    elif action == "show":
+        if not target:
+            typer.echo("Usage: skills show <skill-id>", err=True)
+            raise typer.Exit(1)
+        skill = reg.get(target)
+        import json as _json
+        typer.echo(_json.dumps(skill.to_dict(), indent=2))
+
+    elif action == "export":
+        path = target or "skills_registry.json"
+        reg.save(path)
+        typer.echo(f"Registry exported to {path}")
+
+    else:
+        typer.echo(f"Unknown action: {action!r}. Use list, show, or export.", err=True)
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()
