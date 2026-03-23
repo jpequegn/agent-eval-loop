@@ -110,6 +110,28 @@ def report_cmd(
     typer.echo(f"Report written to: {path}")
 
 
+@app.command("findings")
+def findings_cmd(
+    run_id: str = typer.Argument(..., help="Run ID to analyse. Use 'latest' for most recent."),
+    db: str = typer.Option("eval_loop.duckdb", "--db", help="DuckDB file path."),
+    output: str = typer.Option("FINDINGS.md", "--output", "-o", help="Output markdown file path."),
+) -> None:
+    """Generate a FINDINGS.md convergence report for a completed run."""
+    from dashboard.report import list_runs
+    from eval.analysis import generate_findings
+
+    if run_id == "latest":
+        runs = list_runs(db)
+        if not runs:
+            typer.echo("No runs found.", err=True)
+            raise typer.Exit(1)
+        run_id = runs[0]
+        typer.echo(f"Using latest run: {run_id}")
+
+    path = generate_findings(db, run_id, output)
+    typer.echo(f"Findings written to: {path}")
+
+
 @app.command("skills")
 def skills_cmd(
     action: str = typer.Argument("list", help="list | show <id> | export <path>"),
