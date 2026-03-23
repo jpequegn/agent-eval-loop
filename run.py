@@ -53,6 +53,42 @@ def main(
     loop.run(transcripts)
 
 
+@app.command("research")
+def research_cmd(
+    iterations: int = typer.Option(50, "--iterations", "-i"),
+    episodes: int = typer.Option(5, "--episodes", "-e"),
+    transcripts_dir: Path = typer.Option(P3_TRANSCRIPTS, "--transcripts"),
+    db: str = typer.Option("eval_loop.duckdb", "--db"),
+    detect_mode: bool = typer.Option(False, "--detect-mode"),
+    task_model: str = typer.Option("claude-sonnet-4-6", "--task-model"),
+    research_model: str = typer.Option("claude-sonnet-4-6", "--research-model"),
+    critic_model: str = typer.Option("claude-opus-4-6", "--critic-model"),
+    improver_model: str = typer.Option("claude-sonnet-4-6", "--improver-model"),
+) -> None:
+    """Run the hypothesis-generation research loop."""
+    from loop.research_loop import ResearchLoop
+
+    transcript_files = sorted(transcripts_dir.glob("*.txt"))
+    if not transcript_files:
+        typer.echo(f"No .txt transcripts found in {transcripts_dir}", err=True)
+        raise typer.Exit(1)
+
+    transcripts = [(f.stem, f.read_text(encoding="utf-8")) for f in transcript_files]
+    typer.echo(f"Loaded {len(transcripts)} transcript(s)")
+
+    with ResearchLoop(
+        n_iterations=iterations,
+        n_episodes=episodes,
+        task_model=task_model,
+        research_model=research_model,
+        critic_model=critic_model,
+        improver_model=improver_model,
+        db_path=db,
+        detect_mode=detect_mode,
+    ) as loop:
+        loop.run(transcripts)
+
+
 @app.command("report")
 def report_cmd(
     run_id: str = typer.Argument(..., help="Run ID to generate report for. Use 'latest' for most recent."),
