@@ -15,7 +15,8 @@ from rich.table import Table
 from agents.critic_agent import CriticAgent, CriticResult
 from agents.improver_agent import ImproverAgent, IterationRecord
 from agents.task_agent import DEFAULT_SYSTEM_PROMPT, TaskAgent, TaskResult
-from loop.db import get_connection, init_schema
+from eval.detectors import Anomaly, DetectorSuite
+from loop.db import get_connection, init_schema, log_anomaly
 
 console = Console()
 
@@ -65,16 +66,19 @@ class AgentLoop:
         db_path: str = "eval_loop.duckdb",
         checkpoint_path: str = "loop_checkpoint.json",
         dry_run: bool = False,
+        detect_mode: bool = False,
     ) -> None:
         self.n_iterations = n_iterations
         self.n_episodes = n_episodes
         self.db_path = db_path
         self.checkpoint_path = Path(checkpoint_path)
         self.dry_run = dry_run
+        self.detect_mode = detect_mode
 
         self._task_agent = TaskAgent(model=task_model)
         self._critic_agent = CriticAgent(model=critic_model)
         self._improver_agent = ImproverAgent(model=improver_model)
+        self._detectors = DetectorSuite.default() if detect_mode else None
 
         self._conn = get_connection(db_path)
         init_schema(self._conn)
@@ -133,6 +137,24 @@ class AgentLoop:
             self._log_iteration(run_id, summary)
             self._save_checkpoint(state)
             _print_progress_table(state.iteration_summaries)
+
+            # Failure-mode detection
+            if self._detectors:
+                anomalies = self._detectors.run(
+                    iteration=i,
+                    recent_episode_scores=_extract_episode_scores(state.iteration_summaries),
+                    avg_scores=[s.avg_score for s in state.iteration_summaries],
+                    spot_check_scores=[],   # populated if spot-checks ran
+                    system_prompt=state.current_prompt,
+                )
+                for anomaly in anomalies:
+                    log_anomaly(
+                        self._conn, run_id, i,
+                        anomaly.kind.value, anomaly.message, anomaly.details,
+                    )
+                    console.print(f"[bold red]ANOMALY [{anomaly.kind.value}]: {anomaly.message}[/bold red]")
+                    console.print("[yellow]Pausing — press Enter to continue or Ctrl-C to abort.[/yellow]")
+                    input()
 
         self._close_run(run_id, state)
         console.print(f"\n[bold green]Run {run_id} complete.[/bold green]")
@@ -331,3 +353,11 @@ def _build_history(summaries: list[IterationSummary]) -> list[IterationRecord]:
             )
         )
     return records
+
+
+def _extract_episode_scores(summaries: list[IterationSummary]) -> list[list[float]]:
+    """Return per-iteration lists of per-episode critic scores."""
+    return [
+        [ep.critic_result.overall_score for ep in s.episode_results]
+        for s in summaries
+    ]

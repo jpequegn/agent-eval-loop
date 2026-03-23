@@ -22,6 +22,7 @@ def main(
     transcripts_dir: Path = typer.Option(P3_TRANSCRIPTS, "--transcripts", help="Directory of .txt transcripts."),
     db: str = typer.Option("eval_loop.duckdb", "--db", help="DuckDB file path."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Run 3 iterations and estimate total cost."),
+    detect_mode: bool = typer.Option(False, "--detect-mode", help="Enable failure-mode detectors; pause on anomaly."),
     task_model: str = typer.Option("claude-sonnet-4-6", "--task-model"),
     critic_model: str = typer.Option("claude-opus-4-6", "--critic-model"),
     improver_model: str = typer.Option("claude-sonnet-4-6", "--improver-model"),
@@ -44,6 +45,7 @@ def main(
         improver_model=improver_model,
         db_path=db,
         dry_run=dry_run,
+        detect_mode=detect_mode,
     )
     loop.run(transcripts)
 
