@@ -1,5 +1,9 @@
 """DuckDB setup and schema management."""
 
+import json
+import uuid
+from typing import Any
+
 import duckdb
 
 
@@ -34,3 +38,29 @@ def init_schema(conn: duckdb.DuckDBPyConnection) -> None:
             timestamp     TIMESTAMP NOT NULL DEFAULT current_timestamp
         )
     """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS anomalies (
+            id         VARCHAR PRIMARY KEY,
+            run_id     VARCHAR NOT NULL REFERENCES runs(id),
+            iteration  INTEGER NOT NULL,
+            kind       VARCHAR NOT NULL,
+            message    TEXT NOT NULL,
+            details    TEXT,
+            timestamp  TIMESTAMP NOT NULL DEFAULT current_timestamp
+        )
+    """)
+
+
+def log_anomaly(
+    conn: duckdb.DuckDBPyConnection,
+    run_id: str,
+    iteration: int,
+    kind: str,
+    message: str,
+    details: Any,
+) -> None:
+    conn.execute(
+        "INSERT INTO anomalies (id, run_id, iteration, kind, message, details) VALUES (?,?,?,?,?,?)",
+        [str(uuid.uuid4()), run_id, iteration, kind, message, json.dumps(details)],
+    )
