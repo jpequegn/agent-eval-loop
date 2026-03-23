@@ -12,7 +12,10 @@ load_dotenv()
 
 P3_TRANSCRIPTS = Path("/Users/julienpequegnot/Code/parakeet-podcast-processor/data/transcripts")
 
-app = typer.Typer(help="Agent evaluation loop — improves a task prompt over N iterations.")
+app = typer.Typer(
+    help="Agent evaluation loop — improves a task prompt over N iterations.",
+    invoke_without_command=True,
+)
 
 
 @app.command()
@@ -48,6 +51,27 @@ def main(
         detect_mode=detect_mode,
     )
     loop.run(transcripts)
+
+
+@app.command("report")
+def report_cmd(
+    run_id: str = typer.Argument(..., help="Run ID to generate report for. Use 'latest' for most recent."),
+    db: str = typer.Option("eval_loop.duckdb", "--db", help="DuckDB file path."),
+    output_dir: str = typer.Option("results", "--output-dir", "-o", help="Directory to write HTML report."),
+) -> None:
+    """Generate a static HTML report for a completed run."""
+    from dashboard.report import generate_report, list_runs
+
+    if run_id == "latest":
+        runs = list_runs(db)
+        if not runs:
+            typer.echo("No runs found.", err=True)
+            raise typer.Exit(1)
+        run_id = runs[0]
+        typer.echo(f"Using latest run: {run_id}")
+
+    path = generate_report(db, run_id, output_dir)
+    typer.echo(f"Report written to: {path}")
 
 
 if __name__ == "__main__":
